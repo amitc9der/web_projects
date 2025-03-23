@@ -1,2 +1,9 @@
 Resource :-
 	https://bucephalus.org/text/CanvasHandbook/CanvasHandbook.html#a-first-example
+
+
+
+why? : 
+	1. Browser doesn't allow you to get two different type of context.
+	So, I am going with removing the canvas element and rendering it again.
+	when I need to change the ctx.
