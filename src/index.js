@@ -39,7 +39,6 @@ async function displayCanvasDimension(_canvas, _ctx) {
  * @param { number } shadowOffsetY - shadowOffsetY
  * @returns { DisplayTextType }
  */
-//FIXME: Clear The Preivous Text;
 function DisplayText(
   txt,
   x,
@@ -70,33 +69,6 @@ function DisplayText(
 
   return displayText;
 }
-
-/** @param { DisplayTextType } t -- DisplayTextType */
-const ClearText = (t) => {
-  if (
-    t.txt === "" ||
-    t.ctx === undefined ||
-    t.x === undefined ||
-    t.y === undefined
-  ) {
-    return;
-  }
-  const textMetrics = t.ctx.measureText(t.txt);
-  console.log("Text Metrics:- ", textMetrics);
-  const boxStartX = t.x;
-  const boxStartY = t.y - textMetrics.actualBoundingBoxAscent;
-  const textHeight =
-    textMetrics.fontBoundingBoxAscent + textMetrics.fontBoundingBoxDescent;
-  const textWidth = Math.round(
-    textMetrics.actualBoundingBoxLeft + textMetrics.actualBoundingBoxRight
-  );
-  t.ctx.clearRect(
-    boxStartX,
-    boxStartY,
-    textWidth + t.shadowOffsetX,
-    textHeight + t.shadowOffsetY
-  );
-};
 
 //Display mouse position.
 /**
