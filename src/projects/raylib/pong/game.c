@@ -1,19 +1,8 @@
-/*******************************************************************************************
-*
-*   raylib [core] example - random values
-*
-*   Example complexity rating: [★☆☆☆] 1/4
-*
-*   Example originally created with raylib 1.1, last time updated with raylib 1.1
-*
-*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
-*   BSD-like license that allows static linking with closed source software
-*
-*   Copyright (c) 2014-2025 Ramon Santamaria (@raysan5)
-*
-********************************************************************************************/
-
 #include "raylib.h"
+#include <emscripten/emscripten.h>
+
+
+void UpdateDrawFrame(void);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -22,53 +11,26 @@ int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    // Make it resizable *and* start borderless
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_UNDECORATED);
 
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - random values");
+    // Initialize with full screen size from the start
+    InitWindow(GetMonitorWidth(0), GetMonitorHeight(0), "Full Window Raylib");
+    SetTargetFPS(60);
 
-    // SetRandomSeed(0xaabbccff);   // Set a custom random seed if desired, by default: "time(NULL)"
+    emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 
-    int randValue = GetRandomValue(-8, 5);   // Get a random integer number between -8 and 5 (both included)
-
-    unsigned int framesCounter = 0; // Variable used to count frames
-
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
-    {
-        // Update
-        //----------------------------------------------------------------------------------
-        framesCounter++;
-
-        // Every two seconds (120 frames) a new random value is generated
-        if (((framesCounter/120)%2) == 1)
-        {
-            randValue = GetRandomValue(-8, 5);
-            framesCounter = 0;
-        }
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        BeginDrawing();
-
-            ClearBackground(RAYWHITE);
-
-            DrawText("Every 2 seconds a new random value is generated:", 130, 100, 20, MAROON);
-
-            DrawText(TextFormat("%i", randValue), 360, 180, 80, LIGHTGRAY);
-
-        EndDrawing();
-        //----------------------------------------------------------------------------------
-    }
-
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    CloseWindow();        // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------
+    CloseWindow();        
+    // --------------------------------------------------------------------------------------
 
     return 0;
+}
+
+
+void UpdateDrawFrame(void){
+    BeginDrawing();
+        ClearBackground(BLACK);
+        DrawText("Hello from the browser!", 190, 200, 20, RAYWHITE);
+    EndDrawing();
 }

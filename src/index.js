@@ -1,4 +1,5 @@
 //Display The Canvas's dimensions.
+import { Router } from "./projects/client-side-router/index.js";
 
 // /** @typedef {typeof Promise} PromiseConstructor */
 /**
@@ -143,8 +144,10 @@ function render_tab_2(_gl) {
  */
 function body_mutation_callback(entries) {
   const canvas = document.getElementsByTagName("canvas")[0];
-  canvas.height = window.innerHeight;
-  canvas.width = entries[0].contentBoxSize[0].inlineSize;
+  if(canvas){
+    canvas.height = window.innerHeight;
+    canvas.width = entries[0].contentBoxSize[0].inlineSize;
+  }
 }
 
 function main() {
@@ -154,9 +157,96 @@ function main() {
   const body_el = document.getElementsByTagName("body")[0];
   body_el.style.margin = "0px";
 
-  //Create Canvas Element
-  canvas = document.createElement("canvas");
-  body_el.appendChild(canvas);
+  //create a root div
+  const root = document.createElement("div");
+  body_el.appendChild(root);
+
+  //create a header div
+  const header = document.createElement("div");
+  root.appendChild(header);
+
+  //create a main div
+  const main = document.createElement("div");
+  root.appendChild(main);
+
+  //Setup Client Side Router
+  const router = new Router({
+    "/": ()=>{
+        main.innerHTML = "";
+    },
+    "/pong": ()=>{
+      main.innerHTML = "";
+
+      const iframe = document.createElement("iframe");
+      iframe.src = "/src/projects/raylib/pong/game.html";
+      iframe.style.width = "100%";
+      iframe.style.height = "100vh";
+      iframe.style.border = "none";
+
+      main.appendChild(iframe);
+    },
+    "/showPosition": ()=>{
+        main.innerHTML = "";
+        //Create Canvas Element
+        canvas = document.createElement("canvas");
+        main.appendChild(canvas);
+        // GetContext
+        ctx = canvas.getContext("2d");
+        requestId = window.requestAnimationFrame(canvas_render);
+
+        requestId && window.cancelAnimationFrame(requestId);
+        const _canvas = document.createElement("canvas");
+        canvas && canvas.replaceWith(_canvas);
+        canvas = _canvas;
+        ctx = canvas.getContext("2d");
+        console.log(ctx);
+        setupCanvas();
+        active_tab = 1;
+        requestId = window.requestAnimationFrame(canvas_render);
+    },
+    "/webGL": ()=>{
+        main.innerHTML = "";
+        //Create Canvas Element
+        canvas = document.createElement("canvas");
+        main.appendChild(canvas);
+        // GetContext
+        ctx = canvas.getContext("2d");
+        requestId = window.requestAnimationFrame(canvas_render);
+
+        requestId && window.cancelAnimationFrame(requestId);
+        const _canvas = document.createElement("canvas");
+        canvas && canvas.replaceWith(_canvas);
+        canvas = _canvas;
+        gl = canvas.getContext("webgl");
+        console.log(gl);
+        setupCanvas();
+        active_tab = 2;
+        requestId = window.requestAnimationFrame(canvas_render);
+    },
+  },window);
+
+
+
+  const home_button = document.createElement("button");
+  home_button.textContent = "Go Home";
+  home_button.onclick = () => router.navigate("/");
+  header.appendChild(home_button);
+
+  const pong_button = document.createElement("button");
+  pong_button.textContent = "Pong";
+  pong_button.onclick = () => router.navigate("/pong");
+  header.appendChild(pong_button);
+
+  const show_position_button = document.createElement("button");
+  show_position_button.textContent = "Show Position";
+  show_position_button.onclick = () => router.navigate("/showPosition");
+  header.appendChild(show_position_button);
+
+  const webGL_button = document.createElement("button");
+  webGL_button.textContent = "WebGL Example";
+  webGL_button.onclick = () => router.navigate("/webGL");
+  header.appendChild(webGL_button);
+
 
   //Detect Resize & Resize Canvas
   function setupCanvas(){
@@ -171,13 +261,8 @@ function main() {
       };
     });
   }
-  setupCanvas();
 
-  //GetContext
-  ctx = canvas.getContext("2d");
-  requestId = window.requestAnimationFrame(canvas_render);
-
-  //Added Event Listener
+  // Added Event Listener
   window.addEventListener("keydown", (e) => {
     if (e.altKey) {
       if (caputre_keyboard) {
