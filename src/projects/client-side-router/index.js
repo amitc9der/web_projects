@@ -38,7 +38,6 @@ export class Router{
 			window.location.hash = path;
 		}
 		else{
-			console.warn(`Route not found: ${PATH}`);
 			if (this.routes["*"]){
 				window.location.hash = "*";
 			}
