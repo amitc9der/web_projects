@@ -30,6 +30,9 @@ function main() {
     },
     "/webGL": () => {
       loadIframe(main, "/src/projects/webGL/index.html")
+    },
+    "/algo/bubble_sort": () => {
+      loadIframe(main, "/src/projects/algorithm_visualization/bubble_sort/index.html")
     }
   }, window);
   AppContext.router = router;
@@ -50,6 +53,12 @@ function main() {
       label: "Tools",
       children: [
         { label: "Show Position", onClick: () => router.navigate("/showPosition") },
+      ],
+    },
+    {
+      label: "Algorithms",
+      children: [
+        { label: "Bubble Sort", onClick: () => router.navigate("/algo/bubble_sort") },
       ],
     },
   ]);
