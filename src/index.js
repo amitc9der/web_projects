@@ -33,6 +33,9 @@ function main() {
     },
     "/algo/bubble_sort": () => {
       loadIframe(main, "/src/projects/algorithm_visualization/bubble_sort/index.html")
+    },
+    "/algo/merge_sort": () => {
+      loadIframe(main, "/src/projects/algorithm_visualization/merge_sort/index.html")
     }
   }, window);
   AppContext.router = router;
@@ -59,6 +62,7 @@ function main() {
       label: "Algorithms",
       children: [
         { label: "Bubble Sort", onClick: () => router.navigate("/algo/bubble_sort") },
+        { label: "Merge Sort", onClick: () => router.navigate("/algo/merge_sort") },
       ],
     },
   ]);
