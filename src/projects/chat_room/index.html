@@ -16,25 +16,21 @@
                     <span class="status-dot" id="statusDot"></span>
                     <span id="statusText">Disconnected</span>
                 </div>
-                <div class="message-limit-info">
-                    <span id="messageCount">0</span> / <span id="messageLimit">50</span> messages
-                </div>
-                <button id="clearBtn" class="btn-clear">Clear Chat</button>
             </div>
         </div>
 
-        <div class="username-section" id="usernameSection">
+        <div class="username-section" id="usernameSection" style="display: none;">
             <div class="join-form">
                 <div class="form-group">
-                    <label for="usernameInput">Username</label>
-                    <input type="text" id="usernameInput" placeholder="Enter your username" maxlength="20">
+                    <label for="usernameInput">Username (Optional)</label>
+                    <input type="text" id="usernameInput" placeholder="Leave empty for auto-generated username" maxlength="20">
                 </div>
                 <button id="joinBtn" class="btn-join">Join Public Chat</button>
-                <p class="help-text">Join the public chat room and start chatting with everyone!</p>
+                <p class="help-text">Join the public chat room and start chatting with everyone! Username will be auto-generated if left empty.</p>
             </div>
         </div>
 
-        <div class="chat-main" id="chatMain" style="display: none;">
+        <div class="chat-main" id="chatMain" style="display: flex;">
             <div class="messages-container" id="messagesContainer">
                 <!-- Messages will be inserted here -->
             </div>

@@ -14,9 +14,6 @@ const leaveBtn = document.getElementById('leaveBtn');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const messagesContainer = document.getElementById('messagesContainer');
-const clearBtn = document.getElementById('clearBtn');
-const messageCount = document.getElementById('messageCount');
-const messageLimit = document.getElementById('messageLimit');
 const currentUsername = document.getElementById('currentUsername');
 const connectionStatus = document.getElementById('connectionStatus');
 const statusDot = document.getElementById('statusDot');
@@ -46,9 +43,16 @@ let replyingTo = null; // Track which message we're replying to
 
 // Initialize
 function init() {
-    messageLimit.textContent = MESSAGE_LIMIT;
     setupEventListeners();
     updateConnectionStatus('disconnected');
+    
+    // Auto-join the room with a generated username
+    autoJoinRoom();
+}
+
+function autoJoinRoom() {
+    username = generateRandomUsername();
+    initializePeer();
 }
 
 function setupEventListeners() {
@@ -66,8 +70,6 @@ function setupEventListeners() {
             handleSend();
         }
     });
-
-    clearBtn.addEventListener('click', handleClear);
     
     // Media event listeners
     gifBtn.addEventListener('click', openGifModal);
@@ -101,14 +103,32 @@ function setupEventListeners() {
 function handleJoin() {
     const inputUsername = usernameInput.value.trim();
     
+    // Auto-generate username if empty
     if (!inputUsername) {
-        alert('Please enter a username');
-        return;
+        username = generateRandomUsername();
+    } else {
+        username = inputUsername;
     }
     
-    username = inputUsername;
-    
     initializePeer();
+}
+
+// Generate random username based on time
+function generateRandomUsername() {
+    const now = new Date();
+    const timeSeconds = now.getTime(); // milliseconds since epoch
+    const secondsPart = Math.floor(timeSeconds / 1000); // convert to seconds
+    
+    // Create a fun username with adjectives and nouns
+    const adjectives = ['Swift', 'Brave', 'Clever', 'Mighty', 'Silent', 'Noble', 'Quick', 'Wise', 'Bold', 'Fierce'];
+    const nouns = ['Tiger', 'Eagle', 'Wolf', 'Dragon', 'Phoenix', 'Hawk', 'Lion', 'Fox', 'Bear', 'Falcon'];
+    
+    // Use time-based selection
+    const adjIndex = secondsPart % adjectives.length;
+    const nounIndex = Math.floor(secondsPart / 10) % nouns.length;
+    const randomSuffix = secondsPart % 1000;
+    
+    return `${adjectives[adjIndex]}${nouns[nounIndex]}${randomSuffix}`;
 }
 
 function initializePeer() {
@@ -151,10 +171,8 @@ function initializePeer() {
         
         updateConnectionStatus('connected');
         
-        // Show chat interface
+        // Update username display
         currentUsername.textContent = username;
-        usernameSection.style.display = 'none';
-        chatMain.style.display = 'flex';
         messageInput.focus();
         
         // Start discovery process
@@ -195,8 +213,6 @@ function initializePeer() {
                 updateConnectionStatus('connected');
                 
                 currentUsername.textContent = username;
-                usernameSection.style.display = 'none';
-                chatMain.style.display = 'flex';
                 messageInput.focus();
                 startDiscovery();
             });
@@ -411,10 +427,10 @@ function handleSend() {
         return;
     }
 
-    // Check message limit
+    // Auto-clear oldest messages if limit reached
     if (messages.length >= MESSAGE_LIMIT) {
-        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
-        return;
+        messages = messages.slice(-(MESSAGE_LIMIT - 1)); // Keep the most recent messages
+        renderMessages();
     }
 
     const message = {
@@ -478,9 +494,10 @@ async function searchGifs(query) {
 }
 
 function selectGif(gifUrl, title) {
+    // Auto-clear oldest messages if limit reached
     if (messages.length >= MESSAGE_LIMIT) {
-        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
-        return;
+        messages = messages.slice(-(MESSAGE_LIMIT - 1));
+        renderMessages();
     }
     
     const message = {
@@ -522,11 +539,10 @@ async function handleImageUpload(e) {
         return;
     }
     
-    // Check message limit
+    // Auto-clear oldest messages if limit reached
     if (messages.length >= MESSAGE_LIMIT) {
-        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
-        imageInput.value = '';
-        return;
+        messages = messages.slice(-(MESSAGE_LIMIT - 1));
+        renderMessages();
     }
     
     try {
@@ -576,11 +592,10 @@ async function handleVideoUpload(e) {
         return;
     }
     
-    // Check message limit
+    // Auto-clear oldest messages if limit reached
     if (messages.length >= MESSAGE_LIMIT) {
-        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
-        videoInput.value = '';
-        return;
+        messages = messages.slice(-(MESSAGE_LIMIT - 1));
+        renderMessages();
     }
     
     try {
@@ -737,23 +752,12 @@ function escapeHtml(text) {
 }
 
 function updateMessageCount() {
-    messageCount.textContent = messages.length;
-    
-    // Update UI based on limit
+    // Update UI based on limit (no longer blocks, just warns)
     if (messages.length >= MESSAGE_LIMIT) {
-        messageCount.style.color = '#dc3545';
-        messageInput.disabled = true;
-        sendBtn.disabled = true;
         showLimitWarning(true);
     } else if (messages.length >= MESSAGE_LIMIT * 0.8) {
-        messageCount.style.color = '#ffc107';
-        messageInput.disabled = false;
-        sendBtn.disabled = false;
         showLimitWarning(false);
     } else {
-        messageCount.style.color = '';
-        messageInput.disabled = false;
-        sendBtn.disabled = false;
         hideLimitWarning();
     }
 }
@@ -768,7 +772,7 @@ function showLimitWarning(reached) {
     
     if (reached) {
         warning.className = 'limit-warning limit-reached';
-        warning.textContent = `Message limit reached! Please clear the chat to continue.`;
+        warning.textContent = `Message limit reached! Oldest messages will be auto-cleared.`;
     } else {
         warning.className = 'limit-warning';
         warning.textContent = `Warning: Approaching message limit (${messages.length}/${MESSAGE_LIMIT})`;
@@ -782,19 +786,8 @@ function hideLimitWarning() {
     }
 }
 
-function handleClear() {
-    if (messages.length === 0) return;
-    
-    if (confirm('Are you sure you want to clear all messages? This only clears your view.')) {
-        messages = [];
-        renderMessages();
-        updateMessageCount();
-        hideLimitWarning();
-    }
-}
-
 function handleLeave() {
-    if (confirm('Leave the chat room?')) {
+    if (confirm('Leave the chat room? You will rejoin with a new username.')) {
         // Stop discovery
         if (discoveryInterval) {
             clearInterval(discoveryInterval);
@@ -815,18 +808,17 @@ function handleLeave() {
         }
         
         // Reset state
-        username = '';
         messages = [];
         myPeerId = null;
         isHost = false;
         
-        // Reset UI
-        usernameSection.style.display = 'block';
-        chatMain.style.display = 'none';
-        usernameInput.value = '';
+        // Clear messages
         messagesContainer.innerHTML = '';
         updateConnectionStatus('disconnected');
         updateMessageCount();
+        
+        // Auto-rejoin with new username
+        autoJoinRoom();
     }
 }
 
