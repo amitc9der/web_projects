@@ -28,9 +28,22 @@ async function main() {
   AppContext.router = router;
   window.AppContext = AppContext;
 
+  // Callback to handle post-navigation actions
+  const onNavigate = () => {
+    if (AppContext.sidebar) {
+      AppContext.sidebar.collapse();
+    }
+  };
+
   // Generate sidebar dynamically from config
-  const sidebarItems = generateSidebarItems(config, router);
+  const sidebarItems = generateSidebarItems(config, router, onNavigate);
   const sidebar = createSidebar(sidebarItems);
+  
+  // Store sidebar in AppContext so it can be accessed globally
+  AppContext.sidebar = sidebar;
+
+  // Start with sidebar collapsed by default
+  sidebar.collapse();
 
   //toggle sidebar visibility with keyboard
   document.addEventListener("keydown", (e) => {
@@ -89,11 +102,14 @@ function generateRouterConfig(config, mainElement) {
 /**
  * Generate sidebar items from portfolio config
  */
-function generateSidebarItems(config, router) {
+function generateSidebarItems(config, router, onNavigate = null) {
   const items = [
     {
       label: "Home",
-      onClick: () => router.navigate("/"),
+      onClick: () => {
+        router.navigate("/");
+        if (onNavigate) onNavigate();
+      },
     }
   ];
 
@@ -112,7 +128,10 @@ function generateSidebarItems(config, router) {
         project.routes.forEach(route => {
           categories[category].push({
             label: route.name,
-            onClick: () => router.navigate(route.path)
+            onClick: () => {
+              router.navigate(route.path);
+              if (onNavigate) onNavigate();
+            }
           });
         });
       }
@@ -338,6 +357,35 @@ function createSidebar(items = [], options = {}) {
       visible = false;
       sidebar.style.opacity = "0";
       sidebar.style.pointerEvents = "none";
+    },
+    collapse() {
+      if (!collapsed) {
+        collapsed = true;
+        sidebar.style.width = "4em";
+        sidebar.style.height = "4em";
+        sidebar.style.top = "1em";
+        sidebar.style.borderRadius = "0 0.5em 0.5em 0";
+        sidebar.style.overflow = "hidden";
+        sidebar.style.borderRight = "3px solid #8b6f47";
+        sidebar.style.borderBottom = "3px solid #8b6f47";
+        Array.from(sidebar.children)
+          .filter((c) => c !== collapseBtn)
+          .forEach((el) => (el.style.display = "none"));
+      }
+    },
+    expand() {
+      if (collapsed) {
+        collapsed = false;
+        sidebar.style.width = width;
+        sidebar.style.height = "100vh";
+        sidebar.style.top = "0";
+        sidebar.style.borderRadius = "0";
+        sidebar.style.overflow = "auto";
+        sidebar.style.borderBottom = "none";
+        Array.from(sidebar.children)
+          .filter((c) => c !== collapseBtn)
+          .forEach((el) => (el.style.display = "block"));
+      }
     },
   };
 }

@@ -1,6 +1,9 @@
 // Configuration
 const MESSAGE_LIMIT = 50;
 const PUBLIC_ROOM_ID = 'public-chat-room'; // Fixed room ID for everyone
+const GIPHY_API_KEY = 'GlVGYHkr3WSBnllca54iNt0yFbjz7L65'; // Public Giphy API key
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_VIDEO_SIZE = 10 * 1024 * 1024; // 10MB
 
 // DOM Elements
 const usernameSection = document.getElementById('usernameSection');
@@ -19,6 +22,17 @@ const connectionStatus = document.getElementById('connectionStatus');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 
+// Media DOM Elements
+const gifBtn = document.getElementById('gifBtn');
+const imageBtn = document.getElementById('imageBtn');
+const videoBtn = document.getElementById('videoBtn');
+const imageInput = document.getElementById('imageInput');
+const videoInput = document.getElementById('videoInput');
+const gifModal = document.getElementById('gifModal');
+const closeGifModal = document.getElementById('closeGifModal');
+const gifSearchInput = document.getElementById('gifSearchInput');
+const gifResults = document.getElementById('gifResults');
+
 // State
 let messages = [];
 let username = '';
@@ -28,6 +42,7 @@ let myPeerId = null;
 let isHost = false;
 let hostConnection = null;
 let discoveryInterval = null;
+let replyingTo = null; // Track which message we're replying to
 
 // Initialize
 function init() {
@@ -53,6 +68,34 @@ function setupEventListeners() {
     });
 
     clearBtn.addEventListener('click', handleClear);
+    
+    // Media event listeners
+    gifBtn.addEventListener('click', openGifModal);
+    imageBtn.addEventListener('click', () => imageInput.click());
+    videoBtn.addEventListener('click', () => videoInput.click());
+    closeGifModal.addEventListener('click', closeGifModalHandler);
+    
+    imageInput.addEventListener('change', handleImageUpload);
+    videoInput.addEventListener('change', handleVideoUpload);
+    
+    // GIF search with debounce
+    let searchTimeout;
+    gifSearchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        if (query.length > 0) {
+            searchTimeout = setTimeout(() => searchGifs(query), 500);
+        } else {
+            gifResults.innerHTML = '<div class="gif-placeholder">Type to search for GIFs</div>';
+        }
+    });
+    
+    // Close modal on background click
+    gifModal.addEventListener('click', (e) => {
+        if (e.target === gifModal) {
+            closeGifModalHandler();
+        }
+    });
 }
 
 function handleJoin() {
@@ -254,19 +297,12 @@ function setupConnection(conn, isHostConn = false) {
             peerId: myPeerId
         });
         
-        // If we're the host, send peer list and message history
+        // If we're the host, send peer list
         if (isHost) {
             sendToPeer(conn.peer, {
                 type: 'peer-list',
                 peers: Array.from(connections.keys()).filter(id => id !== conn.peer)
             });
-            
-            if (messages.length > 0) {
-                sendToPeer(conn.peer, {
-                    type: 'message-history',
-                    messages: messages.slice(-20)
-                });
-            }
         }
     });
 
@@ -320,15 +356,6 @@ function handlePeerMessage(peerId, data) {
         // Another peer joined, try to connect to them
         if (data.peerId && data.peerId !== myPeerId) {
             connectToPeer(data.peerId);
-        }
-    } else if (data.type === 'message-history') {
-        // Add received messages to our history (avoid duplicates)
-        if (data.messages) {
-            data.messages.forEach(msg => {
-                if (!messages.find(m => m.id === msg.id)) {
-                    addMessage(msg, false); // Don't broadcast our own history
-                }
-            });
         }
     } else if (data.type === 'message') {
         // Regular chat message
@@ -394,12 +421,204 @@ function handleSend() {
         id: Date.now() + Math.random(),
         username: username,
         text: messageText,
-        timestamp: new Date().toISOString()
+        type: 'text',
+        timestamp: new Date().toISOString(),
+        replyTo: replyingTo ? {
+            id: replyingTo.id,
+            username: replyingTo.username,
+            text: replyingTo.text || replyingTo.gifUrl || replyingTo.imageData || replyingTo.videoData ? 'Media' : '',
+            type: replyingTo.type
+        } : null
     };
 
     addMessage(message, true);
     messageInput.value = '';
+    cancelReply();
     messageInput.focus();
+}
+
+// GIF Modal Functions
+function openGifModal() {
+    gifModal.style.display = 'flex';
+    gifSearchInput.value = '';
+    gifResults.innerHTML = '<div class="gif-placeholder">Type to search for GIFs</div>';
+    setTimeout(() => gifSearchInput.focus(), 100);
+}
+
+function closeGifModalHandler() {
+    gifModal.style.display = 'none';
+}
+
+async function searchGifs(query) {
+    try {
+        gifResults.innerHTML = '<div class="gif-placeholder">Searching...</div>';
+        
+        const response = await fetch(
+            `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=g`
+        );
+        
+        if (!response.ok) throw new Error('Failed to fetch GIFs');
+        
+        const data = await response.json();
+        
+        if (data.data.length === 0) {
+            gifResults.innerHTML = '<div class="gif-placeholder">No GIFs found</div>';
+            return;
+        }
+        
+        gifResults.innerHTML = data.data.map(gif => `
+            <div class="gif-item" onclick="selectGif('${gif.images.fixed_height.url}', '${escapeHtml(gif.title)}')">
+                <img src="${gif.images.fixed_height_small.url}" alt="${escapeHtml(gif.title)}">
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error searching GIFs:', error);
+        gifResults.innerHTML = '<div class="gif-placeholder">Error loading GIFs. Please try again.</div>';
+    }
+}
+
+function selectGif(gifUrl, title) {
+    if (messages.length >= MESSAGE_LIMIT) {
+        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
+        return;
+    }
+    
+    const message = {
+        id: Date.now() + Math.random(),
+        username: username,
+        type: 'gif',
+        gifUrl: gifUrl,
+        text: title || 'GIF',
+        timestamp: new Date().toISOString(),
+        replyTo: replyingTo ? {
+            id: replyingTo.id,
+            username: replyingTo.username,
+            text: replyingTo.text || replyingTo.gifUrl || replyingTo.imageData || replyingTo.videoData ? 'Media' : '',
+            type: replyingTo.type
+        } : null
+    };
+    
+    addMessage(message, true);
+    cancelReply();
+    closeGifModalHandler();
+}
+
+// Image Upload
+async function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        imageInput.value = '';
+        return;
+    }
+    
+    // Validate file size
+    if (file.size > MAX_IMAGE_SIZE) {
+        alert(`Image size must be less than ${MAX_IMAGE_SIZE / (1024 * 1024)}MB`);
+        imageInput.value = '';
+        return;
+    }
+    
+    // Check message limit
+    if (messages.length >= MESSAGE_LIMIT) {
+        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
+        imageInput.value = '';
+        return;
+    }
+    
+    try {
+        const base64 = await fileToBase64(file);
+        
+        const message = {
+            id: Date.now() + Math.random(),
+            username: username,
+            type: 'image',
+            imageData: base64,
+            text: file.name,
+            timestamp: new Date().toISOString(),
+            replyTo: replyingTo ? {
+                id: replyingTo.id,
+                username: replyingTo.username,
+                text: replyingTo.text || replyingTo.gifUrl || replyingTo.imageData || replyingTo.videoData ? 'Media' : '',
+                type: replyingTo.type
+            } : null
+        };
+        
+        addMessage(message, true);
+        cancelReply();
+        imageInput.value = '';
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image. Please try again.');
+        imageInput.value = '';
+    }
+}
+
+// Video Upload
+async function handleVideoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+        alert('Please select a valid video file');
+        videoInput.value = '';
+        return;
+    }
+    
+    // Validate file size
+    if (file.size > MAX_VIDEO_SIZE) {
+        alert(`Video size must be less than ${MAX_VIDEO_SIZE / (1024 * 1024)}MB`);
+        videoInput.value = '';
+        return;
+    }
+    
+    // Check message limit
+    if (messages.length >= MESSAGE_LIMIT) {
+        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
+        videoInput.value = '';
+        return;
+    }
+    
+    try {
+        const base64 = await fileToBase64(file);
+        
+        const message = {
+            id: Date.now() + Math.random(),
+            username: username,
+            type: 'video',
+            videoData: base64,
+            text: file.name,
+            timestamp: new Date().toISOString(),
+            replyTo: replyingTo ? {
+                id: replyingTo.id,
+                username: replyingTo.username,
+                text: replyingTo.text || replyingTo.gifUrl || replyingTo.imageData || replyingTo.videoData ? 'Media' : '',
+                type: replyingTo.type
+            } : null
+        };
+        
+        addMessage(message, true);
+        cancelReply();
+        videoInput.value = '';
+    } catch (error) {
+        console.error('Error uploading video:', error);
+        alert('Failed to upload video. Please try again.');
+        videoInput.value = '';
+    }
+}
+
+// Utility: Convert file to base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 function addMessage(message, broadcast = true) {
@@ -433,13 +652,61 @@ function renderMessages() {
     messagesContainer.innerHTML = messages.map(msg => {
         const isOwn = msg.username === username;
         const time = formatTime(msg.timestamp);
+        
+        let mediaContent = '';
+        let textContent = '';
+        let replyContent = '';
+        
+        // Render reply context if present
+        if (msg.replyTo) {
+            const replyText = msg.replyTo.type === 'text' ? escapeHtml(msg.replyTo.text) : 
+                             msg.replyTo.type === 'gif' ? '🎞️ GIF' :
+                             msg.replyTo.type === 'image' ? '🖼️ Image' :
+                             msg.replyTo.type === 'video' ? '🎬 Video' : 'Media';
+            replyContent = `
+                <div class="message-reply-context">
+                    <div class="reply-indicator"></div>
+                    <div class="reply-content">
+                        <div class="reply-username">${escapeHtml(msg.replyTo.username)}</div>
+                        <div class="reply-text">${replyText}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render based on message type
+        switch(msg.type) {
+            case 'gif':
+                mediaContent = `<div class="message-media"><img src="${msg.gifUrl}" alt="${escapeHtml(msg.text)}" class="media-gif"></div>`;
+                textContent = '';
+                break;
+            
+            case 'image':
+                mediaContent = `<div class="message-media"><img src="${msg.imageData}" alt="${escapeHtml(msg.text)}"></div>`;
+                textContent = msg.text ? `<div class="message-content">${escapeHtml(msg.text)}</div>` : '';
+                break;
+            
+            case 'video':
+                mediaContent = `<div class="message-media"><video controls><source src="${msg.videoData}"></video></div>`;
+                textContent = msg.text ? `<div class="message-content">${escapeHtml(msg.text)}</div>` : '';
+                break;
+            
+            case 'text':
+            default:
+                textContent = `<div class="message-content">${escapeHtml(msg.text)}</div>`;
+                break;
+        }
+        
         return `
-            <div class="message ${isOwn ? 'own' : 'other'}">
+            <div class="message ${isOwn ? 'own' : 'other'}" data-message-id="${msg.id}">
                 <div class="message-header">
                     <span class="message-username">${escapeHtml(msg.username)}</span>
                     <span class="message-time">${time}</span>
+                    <button class="reply-btn" onclick="setReplyTo('${msg.id}')" title="Reply">↩</button>
                 </div>
-                <div class="message-content">${escapeHtml(msg.text)}</div>
+                ${replyContent}
+                ${textContent}
+                ${mediaContent}
             </div>
         `;
     }).join('');
@@ -584,6 +851,60 @@ function updateConnectionStatus(status) {
     }
 }
 
+// Reply functionality
+function setReplyTo(messageId) {
+    const message = messages.find(m => m.id == messageId);
+    if (!message) return;
+    
+    replyingTo = message;
+    showReplyBanner();
+}
+
+function cancelReply() {
+    replyingTo = null;
+    hideReplyBanner();
+}
+
+function showReplyBanner() {
+    let banner = document.getElementById('replyBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'replyBanner';
+        banner.className = 'reply-banner';
+        
+        const inputContainer = messageInput.parentElement;
+        inputContainer.insertBefore(banner, messageInput);
+    }
+    
+    const replyText = replyingTo.type === 'text' ? replyingTo.text : 
+                     replyingTo.type === 'gif' ? '🎞️ GIF' :
+                     replyingTo.type === 'image' ? '🖼️ Image' :
+                     replyingTo.type === 'video' ? '🎬 Video' : 'Media';
+    
+    banner.innerHTML = `
+        <div class="reply-banner-content">
+            <div class="reply-banner-text">
+                <strong>Replying to ${escapeHtml(replyingTo.username)}</strong>
+                <span class="reply-preview">${escapeHtml(replyText.substring(0, 50))}${replyText.length > 50 ? '...' : ''}</span>
+            </div>
+            <button class="reply-cancel-btn" onclick="cancelReply()">✕</button>
+        </div>
+    `;
+    banner.style.display = 'flex';
+    messageInput.focus();
+}
+
+function hideReplyBanner() {
+    const banner = document.getElementById('replyBanner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
+// Make functions globally accessible for onclick handlers
+window.setReplyTo = setReplyTo;
+window.cancelReply = cancelReply;
+window.selectGif = selectGif;
 
 // Initialize on page load
 init();

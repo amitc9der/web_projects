@@ -14,6 +14,12 @@ A beautiful, peer-to-peer public chat room built with HTML, CSS, and JavaScript.
 - 🧹 **Clear Chat** - Remove all messages when needed
 - 📊 **Connection Status** - See your connection status and number of connected peers
 
+### 🎉 New Media Features
+
+- 🎬 **GIF Search** - Search and send animated GIFs using Giphy integration
+- 📷 **Image Upload** - Share images directly in chat (up to 5MB)
+- 🎥 **Video Upload** - Share short videos with built-in player (up to 10MB)
+
 ## How It Works
 
 This chat uses **WebRTC (Web Real-Time Communication)** for peer-to-peer connections:
@@ -22,6 +28,7 @@ This chat uses **WebRTC (Web Real-Time Communication)** for peer-to-peer connect
 - Other users connect to the host
 - Messages are relayed through the host to all peers
 - No data goes through a central server (except initial signaling)
+- New users only see messages sent after they join (no history)
 
 ## How to Use
 
@@ -29,6 +36,26 @@ This chat uses **WebRTC (Web Real-Time Communication)** for peer-to-peer connect
 2. Enter a username
 3. Click "Join Public Chat"
 4. Start chatting! Everyone who joins will be in the same public room
+
+### Using Media Features
+
+#### GIF Search
+1. Click the **🎬 GIF** button
+2. Type a search term in the modal (e.g., "happy", "cat", "celebration")
+3. Click any GIF from the results to send it instantly
+4. All GIFs are family-friendly (G-rated content only)
+
+#### Image Upload
+1. Click the **📷 Image** button
+2. Select an image file from your device
+3. The image will be uploaded and sent to all peers
+4. Maximum file size: 5MB
+
+#### Video Upload
+1. Click the **🎥 Video** button
+2. Select a video file from your device
+3. The video will be uploaded with a built-in player
+4. Maximum file size: 10MB
 
 ## Configuration
 
@@ -73,7 +100,7 @@ Works in all modern browsers that support:
 2. First user becomes host (peer ID: `room-public-chat-room`)
 3. Subsequent users connect to the host
 4. Host relays messages to all connected peers
-5. New peers receive message history when joining
+5. New peers only see messages sent after they join
 
 ## Limitations
 
@@ -81,6 +108,9 @@ Works in all modern browsers that support:
 - **Host dependency**: If the host leaves, others may need to reconnect (new host will be assigned)
 - **NAT/Firewall**: Some network configurations may prevent connections
 - **Single room only**: Everyone joins the same public chat room
+- **File size limits**: Images max 5MB, videos max 10MB
+- **Media transmission**: Large files may take time to transmit over P2P connections
+- **Base64 encoding**: Media files are converted to base64 for transmission
 
 ## Privacy & Security
 
@@ -97,12 +127,31 @@ Works in all modern browsers that support:
 - **Connection status shows "Disconnected"?** Try refreshing and rejoining
 - **HTTPS required**: Some browsers require HTTPS for WebRTC (localhost works without HTTPS)
 
+## Performance Tips
+
+- Keep image/video files as small as possible for faster transmission
+- Compress media before uploading for better performance
+- Clear old messages periodically to free up browser memory
+- Limit the number of media messages if experiencing slowdowns
+- Use GIFs instead of videos when possible (smaller file sizes)
+
+## Technical Stack
+
+- **HTML5**: Structure and semantic markup
+- **CSS3**: Modern styling with Grid and Flexbox
+- **JavaScript (ES6+)**: Core functionality
+- **WebRTC**: Peer-to-peer communication
+- **PeerJS**: Simplified WebRTC wrapper
+- **Giphy API**: GIF search integration
+- **FileReader API**: Client-side file processing
+
 ## Future Improvements
 
 Potential enhancements:
 - End-to-end encryption
-- File sharing
 - Voice/video chat
 - Better host migration when host leaves
 - Message persistence across sessions
 - Private rooms option
+- Image compression before sending
+- Drag-and-drop file uploads

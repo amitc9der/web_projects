@@ -40,6 +40,13 @@
             </div>
 
             <div class="input-section">
+                <div class="media-controls">
+                    <button id="gifBtn" class="btn-media" title="Search GIFs">🎬 GIF</button>
+                    <button id="imageBtn" class="btn-media" title="Upload Image">📷 Image</button>
+                    <button id="videoBtn" class="btn-media" title="Upload Video">🎥 Video</button>
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                    <input type="file" id="videoInput" accept="video/*" style="display: none;">
+                </div>
                 <div class="input-container">
                     <input type="text" id="messageInput" placeholder="Type your message..." maxlength="500">
                     <button id="sendBtn" class="btn-send">Send</button>
@@ -47,6 +54,22 @@
                 <div class="input-footer">
                     <span class="username-display">Chatting as: <strong id="currentUsername"></strong></span>
                     <button id="leaveBtn" class="btn-link">Leave Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GIF Search Modal -->
+    <div id="gifModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎬 Search GIFs</h2>
+                <button id="closeGifModal" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="gifSearchInput" placeholder="Search for GIFs..." class="gif-search-input">
+                <div id="gifResults" class="gif-results">
+                    <div class="gif-placeholder">Type to search for GIFs</div>
                 </div>
             </div>
         </div>
