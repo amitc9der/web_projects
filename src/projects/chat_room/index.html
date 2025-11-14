@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Chat Room - P2P</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>💬 Public Chat Room</h1>
+            <div class="header-controls">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Disconnected</span>
+                </div>
+                <div class="message-limit-info">
+                    <span id="messageCount">0</span> / <span id="messageLimit">50</span> messages
+                </div>
+                <button id="clearBtn" class="btn-clear">Clear Chat</button>
+            </div>
+        </div>
+
+        <div class="username-section" id="usernameSection">
+            <div class="join-form">
+                <div class="form-group">
+                    <label for="usernameInput">Username</label>
+                    <input type="text" id="usernameInput" placeholder="Enter your username" maxlength="20">
+                </div>
+                <button id="joinBtn" class="btn-join">Join Public Chat</button>
+                <p class="help-text">Join the public chat room and start chatting with everyone!</p>
+            </div>
+        </div>
+
+        <div class="chat-main" id="chatMain" style="display: none;">
+            <div class="messages-container" id="messagesContainer">
+                <!-- Messages will be inserted here -->
+            </div>
+
+            <div class="input-section">
+                <div class="input-container">
+                    <input type="text" id="messageInput" placeholder="Type your message..." maxlength="500">
+                    <button id="sendBtn" class="btn-send">Send</button>
+                </div>
+                <div class="input-footer">
+                    <span class="username-display">Chatting as: <strong id="currentUsername"></strong></span>
+                    <button id="leaveBtn" class="btn-link">Leave Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

@@ -529,7 +529,11 @@ function createProjectsSection(projectsConfig) {
             border: "2px solid #8b6f47",
             onClick: () => {
                 if (window.AppContext?.router && project.routes && project.routes.length > 0) {
-                    window.AppContext.router.navigate(project.routes[0]);
+                    // Handle both old string format and new object format for routes
+                    const routePath = typeof project.routes[0] === 'string' 
+                        ? project.routes[0] 
+                        : project.routes[0].path;
+                    window.AppContext.router.navigate(routePath);
                 }
             }
         });

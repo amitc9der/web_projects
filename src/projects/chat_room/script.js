@@ -1,0 +1,589 @@
+// Configuration
+const MESSAGE_LIMIT = 50;
+const PUBLIC_ROOM_ID = 'public-chat-room'; // Fixed room ID for everyone
+
+// DOM Elements
+const usernameSection = document.getElementById('usernameSection');
+const chatMain = document.getElementById('chatMain');
+const usernameInput = document.getElementById('usernameInput');
+const joinBtn = document.getElementById('joinBtn');
+const leaveBtn = document.getElementById('leaveBtn');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const messagesContainer = document.getElementById('messagesContainer');
+const clearBtn = document.getElementById('clearBtn');
+const messageCount = document.getElementById('messageCount');
+const messageLimit = document.getElementById('messageLimit');
+const currentUsername = document.getElementById('currentUsername');
+const connectionStatus = document.getElementById('connectionStatus');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+// State
+let messages = [];
+let username = '';
+let peer = null;
+let connections = new Map(); // Map of peerId -> DataConnection
+let myPeerId = null;
+let isHost = false;
+let hostConnection = null;
+let discoveryInterval = null;
+
+// Initialize
+function init() {
+    messageLimit.textContent = MESSAGE_LIMIT;
+    setupEventListeners();
+    updateConnectionStatus('disconnected');
+}
+
+function setupEventListeners() {
+    joinBtn.addEventListener('click', handleJoin);
+    leaveBtn.addEventListener('click', handleLeave);
+    
+    usernameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleJoin();
+    });
+
+    sendBtn.addEventListener('click', handleSend);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    });
+
+    clearBtn.addEventListener('click', handleClear);
+}
+
+function handleJoin() {
+    const inputUsername = usernameInput.value.trim();
+    
+    if (!inputUsername) {
+        alert('Please enter a username');
+        return;
+    }
+    
+    username = inputUsername;
+    
+    initializePeer();
+}
+
+function initializePeer() {
+    updateConnectionStatus('connecting');
+    
+    // Create a predictable host peer ID for the public room
+    // The host ID is: room-{PUBLIC_ROOM_ID}
+    const hostPeerId = `room-${PUBLIC_ROOM_ID}`;
+    
+    // Generate a unique peer ID for this user
+    const myId = `${PUBLIC_ROOM_ID}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Try to become the host first (use host ID)
+    peer = new Peer(hostPeerId, {
+        host: '0.peerjs.com',
+        port: 443,
+        path: '/',
+        secure: true,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+        }
+    });
+
+    peer.on('open', (id) => {
+        myPeerId = id;
+        console.log('My peer ID is: ' + id);
+        
+        // If we got the host ID, we're the host
+        if (id === hostPeerId) {
+            isHost = true;
+            console.log('I am the host for public chat room');
+        } else {
+            // If we didn't get host ID, try to connect as a client
+            isHost = false;
+            connectToHost(hostPeerId);
+        }
+        
+        updateConnectionStatus('connected');
+        
+        // Show chat interface
+        currentUsername.textContent = username;
+        usernameSection.style.display = 'none';
+        chatMain.style.display = 'flex';
+        messageInput.focus();
+        
+        // Start discovery process
+        startDiscovery();
+    });
+
+    peer.on('connection', (conn) => {
+        console.log('Received connection from:', conn.peer);
+        setupConnection(conn);
+    });
+
+    peer.on('error', (err) => {
+        console.error('Peer error:', err);
+        
+        // If host ID is taken, we're a client - create new peer with unique ID
+        if (err.type === 'unavailable-id' || err.type === 'socket-error') {
+            console.log('Host ID taken, connecting as client...');
+            peer.destroy();
+            
+            // Create new peer with unique ID
+            peer = new Peer(myId, {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
+            
+            peer.on('open', (id) => {
+                myPeerId = id;
+                isHost = false;
+                connectToHost(hostPeerId);
+                updateConnectionStatus('connected');
+                
+                currentUsername.textContent = username;
+                usernameSection.style.display = 'none';
+                chatMain.style.display = 'flex';
+                messageInput.focus();
+                startDiscovery();
+            });
+            
+            peer.on('connection', (conn) => {
+                setupConnection(conn);
+            });
+            
+            peer.on('error', (e) => {
+                if (e.type !== 'peer-unavailable') {
+                    console.error('Peer error:', e);
+                    updateConnectionStatus('error');
+                }
+            });
+            
+            return;
+        }
+        
+        if (err.type === 'peer-unavailable') {
+            // This is normal when trying to connect to non-existent peers
+            return;
+        }
+        
+        updateConnectionStatus('error');
+    });
+
+    peer.on('disconnected', () => {
+        updateConnectionStatus('disconnected');
+        console.log('Peer disconnected');
+    });
+
+    peer.on('close', () => {
+        updateConnectionStatus('disconnected');
+        console.log('Peer connection closed');
+    });
+}
+
+function connectToHost(hostId) {
+    if (hostConnection || hostId === myPeerId) return;
+    
+    try {
+        const conn = peer.connect(hostId, { reliable: true });
+        if (conn) {
+            hostConnection = conn;
+            setupConnection(conn, true);
+        }
+    } catch (error) {
+        console.error('Error connecting to host:', error);
+    }
+}
+
+function startDiscovery() {
+    // Periodically try to connect to host if we're not connected
+    if (discoveryInterval) {
+        clearInterval(discoveryInterval);
+    }
+    
+    discoveryInterval = setInterval(() => {
+        if (!isHost && !hostConnection) {
+            const hostId = `room-${PUBLIC_ROOM_ID}`;
+            connectToHost(hostId);
+        }
+    }, 3000);
+}
+
+
+function connectToPeer(peerId) {
+    if (connections.has(peerId) || peerId === myPeerId) {
+        return;
+    }
+    
+    try {
+        const conn = peer.connect(peerId, {
+            reliable: true
+        });
+        
+        if (conn) {
+            setupConnection(conn);
+        }
+    } catch (error) {
+        console.error('Error connecting to peer:', error);
+    }
+}
+
+function setupConnection(conn, isHostConn = false) {
+    conn.on('open', () => {
+        console.log('Connected to peer:', conn.peer);
+        connections.set(conn.peer, conn);
+        if (isHostConn) {
+            hostConnection = conn;
+        }
+        updateConnectionStatus('connected');
+        
+        // Send join message
+        sendToPeer(conn.peer, {
+            type: 'join',
+            username: username,
+            peerId: myPeerId
+        });
+        
+        // If we're the host, send peer list and message history
+        if (isHost) {
+            sendToPeer(conn.peer, {
+                type: 'peer-list',
+                peers: Array.from(connections.keys()).filter(id => id !== conn.peer)
+            });
+            
+            if (messages.length > 0) {
+                sendToPeer(conn.peer, {
+                    type: 'message-history',
+                    messages: messages.slice(-20)
+                });
+            }
+        }
+    });
+
+    conn.on('data', (data) => {
+        handlePeerMessage(conn.peer, data);
+    });
+
+    conn.on('close', () => {
+        console.log('Connection closed with:', conn.peer);
+        connections.delete(conn.peer);
+        if (isHostConn) {
+            hostConnection = null;
+        }
+        updateConnectionStatus('connected');
+    });
+
+    conn.on('error', (err) => {
+        console.error('Connection error:', err);
+        connections.delete(conn.peer);
+        if (isHostConn) {
+            hostConnection = null;
+        }
+    });
+}
+
+function handlePeerMessage(peerId, data) {
+    if (data.type === 'join') {
+        console.log('Peer joined:', data.username);
+        
+        // If we're the host, broadcast the new peer to others
+        if (isHost) {
+            // Broadcast new peer to all existing connections
+            connections.forEach((conn, pId) => {
+                if (pId !== peerId) {
+                    sendToPeer(pId, {
+                        type: 'peer-joined',
+                        peerId: data.peerId,
+                        username: data.username
+                    });
+                }
+            });
+        }
+    } else if (data.type === 'peer-list') {
+        // Connect to peers in the list (mesh network)
+        if (data.peers && isHost) {
+            data.peers.forEach(pId => {
+                connectToPeer(pId);
+            });
+        }
+    } else if (data.type === 'peer-joined') {
+        // Another peer joined, try to connect to them
+        if (data.peerId && data.peerId !== myPeerId) {
+            connectToPeer(data.peerId);
+        }
+    } else if (data.type === 'message-history') {
+        // Add received messages to our history (avoid duplicates)
+        if (data.messages) {
+            data.messages.forEach(msg => {
+                if (!messages.find(m => m.id === msg.id)) {
+                    addMessage(msg, false); // Don't broadcast our own history
+                }
+            });
+        }
+    } else if (data.type === 'message') {
+        // Regular chat message
+        addMessage(data.message, false);
+        
+        // If we're the host, relay to all other peers
+        if (isHost) {
+            connections.forEach((conn, pId) => {
+                if (pId !== peerId) {
+                    sendToPeer(pId, data);
+                }
+            });
+        } else if (hostConnection && peerId !== hostConnection.peer) {
+            // If we're a client and received from non-host, relay to host
+            sendToPeer(hostConnection.peer, data);
+        }
+    }
+}
+
+function broadcastMessage(message) {
+    const data = {
+        type: 'message',
+        message: message
+    };
+    
+    if (isHost) {
+        // Host broadcasts to all connected peers
+        connections.forEach((conn, peerId) => {
+            sendToPeer(peerId, data);
+        });
+    } else if (hostConnection) {
+        // Client sends to host, host will relay
+        sendToPeer(hostConnection.peer, data);
+    }
+}
+
+function sendToPeer(peerId, data) {
+    const conn = connections.get(peerId);
+    if (conn && conn.open) {
+        try {
+            conn.send(data);
+        } catch (error) {
+            console.error('Error sending to peer:', error);
+        }
+    }
+}
+
+function handleSend() {
+    const messageText = messageInput.value.trim();
+    if (!messageText) return;
+    if (!username) {
+        alert('Please enter a username first');
+        return;
+    }
+
+    // Check message limit
+    if (messages.length >= MESSAGE_LIMIT) {
+        alert(`Message limit reached (${MESSAGE_LIMIT} messages). Please clear the chat to continue.`);
+        return;
+    }
+
+    const message = {
+        id: Date.now() + Math.random(),
+        username: username,
+        text: messageText,
+        timestamp: new Date().toISOString()
+    };
+
+    addMessage(message, true);
+    messageInput.value = '';
+    messageInput.focus();
+}
+
+function addMessage(message, broadcast = true) {
+    // Avoid duplicates
+    if (messages.find(m => m.id === message.id)) {
+        return;
+    }
+    
+    messages.push(message);
+    
+    // Enforce message limit
+    if (messages.length > MESSAGE_LIMIT) {
+        messages = messages.slice(-MESSAGE_LIMIT);
+    }
+    
+    renderMessages();
+    updateMessageCount();
+    
+    // Broadcast to all connected peers
+    if (broadcast) {
+        broadcastMessage(message);
+    }
+}
+
+function renderMessages() {
+    if (messages.length === 0) {
+        messagesContainer.innerHTML = '<div class="empty-state">No messages yet. Start the conversation! Everyone in the public chat room will see your messages.</div>';
+        return;
+    }
+
+    messagesContainer.innerHTML = messages.map(msg => {
+        const isOwn = msg.username === username;
+        const time = formatTime(msg.timestamp);
+        return `
+            <div class="message ${isOwn ? 'own' : 'other'}">
+                <div class="message-header">
+                    <span class="message-username">${escapeHtml(msg.username)}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${escapeHtml(msg.text)}</div>
+            </div>
+        `;
+    }).join('');
+
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (seconds < 60) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function updateMessageCount() {
+    messageCount.textContent = messages.length;
+    
+    // Update UI based on limit
+    if (messages.length >= MESSAGE_LIMIT) {
+        messageCount.style.color = '#dc3545';
+        messageInput.disabled = true;
+        sendBtn.disabled = true;
+        showLimitWarning(true);
+    } else if (messages.length >= MESSAGE_LIMIT * 0.8) {
+        messageCount.style.color = '#ffc107';
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        showLimitWarning(false);
+    } else {
+        messageCount.style.color = '';
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        hideLimitWarning();
+    }
+}
+
+function showLimitWarning(reached) {
+    let warning = document.getElementById('limitWarning');
+    if (!warning) {
+        warning = document.createElement('div');
+        warning.id = 'limitWarning';
+        chatMain.insertBefore(warning, messagesContainer);
+    }
+    
+    if (reached) {
+        warning.className = 'limit-warning limit-reached';
+        warning.textContent = `Message limit reached! Please clear the chat to continue.`;
+    } else {
+        warning.className = 'limit-warning';
+        warning.textContent = `Warning: Approaching message limit (${messages.length}/${MESSAGE_LIMIT})`;
+    }
+}
+
+function hideLimitWarning() {
+    const warning = document.getElementById('limitWarning');
+    if (warning) {
+        warning.remove();
+    }
+}
+
+function handleClear() {
+    if (messages.length === 0) return;
+    
+    if (confirm('Are you sure you want to clear all messages? This only clears your view.')) {
+        messages = [];
+        renderMessages();
+        updateMessageCount();
+        hideLimitWarning();
+    }
+}
+
+function handleLeave() {
+    if (confirm('Leave the chat room?')) {
+        // Stop discovery
+        if (discoveryInterval) {
+            clearInterval(discoveryInterval);
+            discoveryInterval = null;
+        }
+        
+        // Close all connections
+        connections.forEach((conn) => {
+            conn.close();
+        });
+        connections.clear();
+        hostConnection = null;
+        
+        // Close peer connection
+        if (peer) {
+            peer.destroy();
+            peer = null;
+        }
+        
+        // Reset state
+        username = '';
+        messages = [];
+        myPeerId = null;
+        isHost = false;
+        
+        // Reset UI
+        usernameSection.style.display = 'block';
+        chatMain.style.display = 'none';
+        usernameInput.value = '';
+        messagesContainer.innerHTML = '';
+        updateConnectionStatus('disconnected');
+        updateMessageCount();
+    }
+}
+
+function updateConnectionStatus(status) {
+    statusDot.className = 'status-dot';
+    
+    switch(status) {
+        case 'connected':
+            statusDot.classList.add('connected');
+            statusText.textContent = `Connected (${connections.size} peer${connections.size !== 1 ? 's' : ''})`;
+            break;
+        case 'connecting':
+            statusDot.classList.add('connecting');
+            statusText.textContent = 'Connecting...';
+            break;
+        case 'error':
+            statusDot.style.background = '#dc3545';
+            statusText.textContent = 'Error';
+            break;
+        default:
+            statusText.textContent = 'Disconnected';
+    }
+}
+
+
+// Initialize on page load
+init();

@@ -23,7 +23,8 @@
       "Game Development",
       "WebGL & 3D Graphics",
       "Performance Optimization",
-      "Creative Coding"
+      "Creative Coding",
+      "P2P & Real-time Communication"
     ]
   },
   "skills": {
@@ -33,6 +34,7 @@
       "HTML/CSS",
       "WebGL",
       "WebAssembly",
+      "WebRTC & P2P",
       "C/C++",
       "Game Development",
       "Algorithm Design",
@@ -46,25 +48,71 @@
         "title": "Algorithm Visualizations",
         "description": "Interactive visualizations of sorting algorithms including Bubble Sort and Merge Sort, built with WebAssembly for optimal performance.",
         "technologies": ["C", "WebAssembly", "JavaScript", "Canvas"],
-        "routes": ["/algo/bubble_sort", "/algo/merge_sort"]
+        "category": "Algorithms",
+        "routes": [
+          {
+            "path": "/algo/bubble_sort",
+            "name": "Bubble Sort",
+            "file": "/src/projects/algorithm_visualization/bubble_sort/index.html"
+          },
+          {
+            "path": "/algo/merge_sort",
+            "name": "Merge Sort",
+            "file": "/src/projects/algorithm_visualization/merge_sort/index.html"
+          }
+        ]
       },
       {
         "title": "Pong Game",
         "description": "Classic Pong game implementation using Raylib compiled to WebAssembly, demonstrating game development in the browser.",
         "technologies": ["C", "Raylib", "WebAssembly", "Game Development"],
-        "routes": ["/pong"]
+        "category": "Games",
+        "routes": [
+          {
+            "path": "/pong",
+            "name": "Pong",
+            "file": "/src/projects/raylib/pong/game.html"
+          }
+        ]
       },
       {
         "title": "WebGL Exploration",
         "description": "Interactive 3D graphics experiments using WebGL, exploring the capabilities of GPU-accelerated rendering in the browser.",
         "technologies": ["WebGL", "JavaScript", "3D Graphics"],
-        "routes": ["/webGL"]
+        "category": "Games",
+        "routes": [
+          {
+            "path": "/webGL",
+            "name": "WebGL Demo",
+            "file": "/src/projects/webGL/index.html"
+          }
+        ]
       },
       {
         "title": "Canvas Tools",
         "description": "Creative coding tools and utilities for canvas manipulation, including position tracking and interactive elements.",
         "technologies": ["JavaScript", "Canvas API", "HTML5"],
-        "routes": ["/showPosition"]
+        "category": "Tools",
+        "routes": [
+          {
+            "path": "/showPosition",
+            "name": "Show Position",
+            "file": "/src/projects/canvas_exploration/index.html"
+          }
+        ]
+      },
+      {
+        "title": "Public Chat Room",
+        "description": "Real-time peer-to-peer chat application using PeerJS for decentralized communication. No server required - just pure browser-to-browser messaging.",
+        "technologies": ["JavaScript", "PeerJS", "WebRTC", "P2P"],
+        "category": "Tools",
+        "routes": [
+          {
+            "path": "/chat",
+            "name": "Chat Room",
+            "file": "/src/projects/chat_room/index.html"
+          }
+        ]
       }
     ]
   },

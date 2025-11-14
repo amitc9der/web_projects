@@ -2,7 +2,8 @@ import { Router } from "./projects/client-side-router/index.js";
 import loadPortfolio from "./projects/portfolio/index.js";
 
 const AppContext = {};
-function main() {
+
+async function main() {
   console.log("JS linked");
 
   /**@type { HTMLBodyElement } */
@@ -17,62 +18,116 @@ function main() {
   main.style.overflow = "hidden";
   body_el.appendChild(main);
 
-  //Setup Client Side Router
-  const router = new Router({
-    "/": () => {
-      loadPortfolio();
-    },
-    "/pong": () => {
-      loadIframe(main, "/src/projects/raylib/pong/game.html")
-    },
-    "/showPosition": () => {
-      loadIframe(main, "/src/projects/canvas_exploration/index.html")
-    },
-    "/webGL": () => {
-      loadIframe(main, "/src/projects/webGL/index.html")
-    },
-    "/algo/bubble_sort": () => {
-      loadIframe(main, "/src/projects/algorithm_visualization/bubble_sort/index.html")
-    },
-    "/algo/merge_sort": () => {
-      loadIframe(main, "/src/projects/algorithm_visualization/merge_sort/index.html")
-    }
-  }, window);
+  // Load portfolio configuration
+  const config = await loadPortfolioConfig();
+
+  // Generate router configuration dynamically from config
+  const routerConfig = generateRouterConfig(config, main);
+  
+  const router = new Router(routerConfig, window);
   AppContext.router = router;
   window.AppContext = AppContext;
 
-  const sidebar = createSidebar([
-    {
-      label: "Home",
-      onClick: () => router.navigate("/"),
-    },
-    {
-      label: "Games",
-      children: [
-        { label: "Pong", onClick: () => router.navigate("/pong") },
-        { label: "WebGL Demo", onClick: () => router.navigate("/webGL") },
-      ],
-    },
-    {
-      label: "Tools",
-      children: [
-        { label: "Show Position", onClick: () => router.navigate("/showPosition") },
-      ],
-    },
-    {
-      label: "Algorithms",
-      children: [
-        { label: "Bubble Sort", onClick: () => router.navigate("/algo/bubble_sort") },
-        { label: "Merge Sort", onClick: () => router.navigate("/algo/merge_sort") },
-      ],
-    },
-  ]);
+  // Generate sidebar dynamically from config
+  const sidebarItems = generateSidebarItems(config, router);
+  const sidebar = createSidebar(sidebarItems);
 
   //toggle sidebar visibility with keyboard
   document.addEventListener("keydown", (e) => {
     if (e.key === "`") sidebar.toggleVisibility(); // Press backtick ` to toggle
   });
 
+}
+
+/**
+ * Load portfolio configuration from JSON
+ */
+async function loadPortfolioConfig() {
+  try {
+    const response = await fetch('/src/projects/portfolio/portfolio-config.json');
+    if (!response.ok) {
+      throw new Error(`Failed to load config: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to load portfolio config:", error);
+    // Return minimal config if loading fails
+    return {
+      projects: {
+        items: []
+      }
+    };
+  }
+}
+
+/**
+ * Generate router configuration from portfolio config
+ */
+function generateRouterConfig(config, mainElement) {
+  const routes = {
+    "/": () => {
+      loadPortfolio();
+    }
+  };
+
+  // Extract all routes from projects
+  if (config.projects && config.projects.items) {
+    config.projects.items.forEach(project => {
+      if (project.routes && Array.isArray(project.routes)) {
+        project.routes.forEach(route => {
+          routes[route.path] = () => {
+            loadIframe(mainElement, route.file);
+          };
+        });
+      }
+    });
+  }
+
+  return routes;
+}
+
+/**
+ * Generate sidebar items from portfolio config
+ */
+function generateSidebarItems(config, router) {
+  const items = [
+    {
+      label: "Home",
+      onClick: () => router.navigate("/"),
+    }
+  ];
+
+  // Group routes by category
+  const categories = {};
+  
+  if (config.projects && config.projects.items) {
+    config.projects.items.forEach(project => {
+      const category = project.category || "Other";
+      
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+
+      if (project.routes && Array.isArray(project.routes)) {
+        project.routes.forEach(route => {
+          categories[category].push({
+            label: route.name,
+            onClick: () => router.navigate(route.path)
+          });
+        });
+      }
+    });
+  }
+
+  // Convert categories object to sidebar structure
+  Object.keys(categories).sort().forEach(categoryName => {
+    items.push({
+      label: categoryName,
+      children: categories[categoryName]
+    });
+  });
+
+  return items;
 }
 
 
