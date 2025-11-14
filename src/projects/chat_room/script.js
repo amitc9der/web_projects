@@ -5,6 +5,14 @@ const GIPHY_API_KEY = 'GlVGYHkr3WSBnllca54iNt0yFbjz7L65'; // Public Giphy API ke
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 10 * 1024 * 1024; // 10MB
 
+// Security Configuration
+const MAX_MESSAGE_LENGTH = 500;
+const MAX_USERNAME_LENGTH = 20;
+const RATE_LIMIT_MESSAGES = 10; // messages per time window
+const RATE_LIMIT_WINDOW = 5000; // 5 seconds
+const MAX_MEDIA_SIZE_RECEIVED = MAX_VIDEO_SIZE * 2; // Allow some buffer for received media
+const BLOCKED_PEERS_STORAGE_KEY = 'chat-blocked-peers';
+
 // DOM Elements
 const usernameSection = document.getElementById('usernameSection');
 const chatMain = document.getElementById('chatMain');
@@ -41,6 +49,11 @@ let hostConnection = null;
 let discoveryInterval = null;
 let replyingTo = null; // Track which message we're replying to
 
+// Security State
+let peerMessageTimestamps = new Map(); // Track message rate per peer
+let blockedPeers = new Set(); // Set of blocked peer IDs
+let suspiciousActivity = new Map(); // Track suspicious activity per peer
+
 // Initialize
 function init() {
     setupEventListeners();
@@ -51,8 +64,29 @@ function init() {
 }
 
 function autoJoinRoom() {
-    username = generateRandomUsername();
+    // Username will be generated after we get peer ID
     initializePeer();
+}
+
+// Generate random username based on peer ID
+function generateRandomUsernameFromPeerId(peerId) {
+    const adjectives = ['Swift', 'Brave', 'Clever', 'Mighty', 'Silent', 'Noble', 'Quick', 'Wise', 'Bold', 'Fierce'];
+    const nouns = ['Tiger', 'Eagle', 'Wolf', 'Dragon', 'Phoenix', 'Hawk', 'Lion', 'Fox', 'Bear', 'Falcon'];
+    
+    // Hash the peer ID to get consistent random selection
+    let hash = 0;
+    for (let i = 0; i < peerId.length; i++) {
+        hash = ((hash << 5) - hash) + peerId.charCodeAt(i);
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    const adjIndex = Math.abs(hash) % adjectives.length;
+    const nounIndex = Math.abs(Math.floor(hash / 10)) % nouns.length;
+    
+    // Extract last few characters of peer ID for uniqueness
+    const suffix = peerId.slice(-4).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    
+    return `${adjectives[adjIndex]}${nouns[nounIndex]}${suffix}`;
 }
 
 function setupEventListeners() {
@@ -103,32 +137,12 @@ function setupEventListeners() {
 function handleJoin() {
     const inputUsername = usernameInput.value.trim();
     
-    // Auto-generate username if empty
-    if (!inputUsername) {
-        username = generateRandomUsername();
-    } else {
+    if (inputUsername) {
         username = inputUsername;
     }
+    // Username will be auto-generated from peer ID if not set
     
     initializePeer();
-}
-
-// Generate random username based on time
-function generateRandomUsername() {
-    const now = new Date();
-    const timeSeconds = now.getTime(); // milliseconds since epoch
-    const secondsPart = Math.floor(timeSeconds / 1000); // convert to seconds
-    
-    // Create a fun username with adjectives and nouns
-    const adjectives = ['Swift', 'Brave', 'Clever', 'Mighty', 'Silent', 'Noble', 'Quick', 'Wise', 'Bold', 'Fierce'];
-    const nouns = ['Tiger', 'Eagle', 'Wolf', 'Dragon', 'Phoenix', 'Hawk', 'Lion', 'Fox', 'Bear', 'Falcon'];
-    
-    // Use time-based selection
-    const adjIndex = secondsPart % adjectives.length;
-    const nounIndex = Math.floor(secondsPart / 10) % nouns.length;
-    const randomSuffix = secondsPart % 1000;
-    
-    return `${adjectives[adjIndex]}${nouns[nounIndex]}${randomSuffix}`;
 }
 
 function initializePeer() {
@@ -158,6 +172,12 @@ function initializePeer() {
     peer.on('open', (id) => {
         myPeerId = id;
         console.log('My peer ID is: ' + id);
+        
+        // Generate username from peer ID if not already set
+        if (!username) {
+            username = generateRandomUsernameFromPeerId(id);
+            console.log('Generated username: ' + username);
+        }
         
         // If we got the host ID, we're the host
         if (id === hostPeerId) {
@@ -208,6 +228,13 @@ function initializePeer() {
             
             peer.on('open', (id) => {
                 myPeerId = id;
+                
+                // Generate username from peer ID if not already set
+                if (!username) {
+                    username = generateRandomUsernameFromPeerId(id);
+                    console.log('Generated username: ' + username);
+                }
+                
                 isHost = false;
                 connectToHost(hostPeerId);
                 updateConnectionStatus('connected');
@@ -344,7 +371,192 @@ function setupConnection(conn, isHostConn = false) {
     });
 }
 
+// Security Functions
+function isPeerBlocked(peerId) {
+    return blockedPeers.has(peerId);
+}
+
+function blockPeer(peerId, reason = 'Suspicious activity') {
+    if (isPeerBlocked(peerId)) return;
+    
+    blockedPeers.add(peerId);
+    console.warn(`🚫 Blocked peer ${peerId}: ${reason}`);
+    
+    // Disconnect from blocked peer
+    const conn = connections.get(peerId);
+    if (conn) {
+        conn.close();
+        connections.delete(peerId);
+    }
+    
+    // Show notification to user
+    showSecurityWarning(`Blocked a user due to: ${reason}`);
+}
+
+function checkRateLimit(peerId) {
+    const now = Date.now();
+    const timestamps = peerMessageTimestamps.get(peerId) || [];
+    
+    // Remove old timestamps outside the window
+    const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+    
+    // Check if rate limit exceeded
+    if (recentTimestamps.length >= RATE_LIMIT_MESSAGES) {
+        return false; // Rate limit exceeded
+    }
+    
+    // Add current timestamp
+    recentTimestamps.push(now);
+    peerMessageTimestamps.set(peerId, recentTimestamps);
+    
+    return true; // Within rate limit
+}
+
+function validateReceivedMessage(data, peerId) {
+    // Check if peer is blocked
+    if (isPeerBlocked(peerId)) {
+        console.warn('Rejected message from blocked peer:', peerId);
+        return false;
+    }
+    
+    // Validate data structure
+    if (!data || typeof data !== 'object') {
+        console.warn('Invalid data structure from peer:', peerId);
+        recordSuspiciousActivity(peerId, 'Invalid data structure');
+        return false;
+    }
+    
+    // Validate message type
+    if (!data.type || typeof data.type !== 'string') {
+        console.warn('Invalid message type from peer:', peerId);
+        recordSuspiciousActivity(peerId, 'Invalid message type');
+        return false;
+    }
+    
+    // Validate message data
+    if (data.type === 'message') {
+        if (!data.message || typeof data.message !== 'object') {
+            console.warn('Invalid message data from peer:', peerId);
+            recordSuspiciousActivity(peerId, 'Invalid message data');
+            return false;
+        }
+        
+        const msg = data.message;
+        
+        // Validate username
+        if (!msg.username || typeof msg.username !== 'string' || msg.username.length > MAX_USERNAME_LENGTH) {
+            console.warn('Invalid username from peer:', peerId);
+            recordSuspiciousActivity(peerId, 'Invalid username');
+            return false;
+        }
+        
+        // Validate message text length
+        if (msg.text && msg.text.length > MAX_MESSAGE_LENGTH * 2) {
+            console.warn('Message too long from peer:', peerId);
+            recordSuspiciousActivity(peerId, 'Message too long');
+            return false;
+        }
+        
+        // Validate message type
+        const validTypes = ['text', 'gif', 'image', 'video'];
+        if (!validTypes.includes(msg.type)) {
+            console.warn('Invalid message type from peer:', peerId);
+            recordSuspiciousActivity(peerId, 'Invalid message type');
+            return false;
+        }
+        
+        // Validate media data size
+        if (msg.imageData) {
+            const size = estimateBase64Size(msg.imageData);
+            if (size > MAX_MEDIA_SIZE_RECEIVED) {
+                console.warn('Image too large from peer:', peerId);
+                recordSuspiciousActivity(peerId, 'Oversized image');
+                return false;
+            }
+            // Validate it's actually an image data URL
+            if (!msg.imageData.startsWith('data:image/')) {
+                console.warn('Invalid image data from peer:', peerId);
+                recordSuspiciousActivity(peerId, 'Invalid image data');
+                return false;
+            }
+        }
+        
+        if (msg.videoData) {
+            const size = estimateBase64Size(msg.videoData);
+            if (size > MAX_MEDIA_SIZE_RECEIVED) {
+                console.warn('Video too large from peer:', peerId);
+                recordSuspiciousActivity(peerId, 'Oversized video');
+                return false;
+            }
+            // Validate it's actually a video data URL
+            if (!msg.videoData.startsWith('data:video/')) {
+                console.warn('Invalid video data from peer:', peerId);
+                recordSuspiciousActivity(peerId, 'Invalid video data');
+                return false;
+            }
+        }
+        
+        // Validate GIF URL
+        if (msg.gifUrl && typeof msg.gifUrl !== 'string') {
+            console.warn('Invalid GIF URL from peer:', peerId);
+            recordSuspiciousActivity(peerId, 'Invalid GIF URL');
+            return false;
+        }
+        
+        // Check rate limit
+        if (!checkRateLimit(peerId)) {
+            console.warn('Rate limit exceeded for peer:', peerId);
+            blockPeer(peerId, 'Sending messages too fast (spam detected)');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function estimateBase64Size(base64String) {
+    if (!base64String) return 0;
+    const base64Data = base64String.split(',')[1] || base64String;
+    return (base64Data.length * 3) / 4;
+}
+
+function recordSuspiciousActivity(peerId, activity) {
+    const count = suspiciousActivity.get(peerId) || 0;
+    const newCount = count + 1;
+    suspiciousActivity.set(peerId, newCount);
+    
+    // Auto-block after 3 suspicious activities
+    if (newCount >= 3) {
+        blockPeer(peerId, `Multiple violations: ${activity}`);
+    }
+}
+
+function showSecurityWarning(message) {
+    const warning = document.createElement('div');
+    warning.className = 'security-warning';
+    warning.innerHTML = `
+        <span class="security-icon">🛡️</span>
+        <span class="security-message">${escapeHtml(message)}</span>
+    `;
+    
+    // Insert at top of messages container
+    const container = messagesContainer.parentElement;
+    container.insertBefore(warning, messagesContainer);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        warning.style.opacity = '0';
+        setTimeout(() => warning.remove(), 300);
+    }, 5000);
+}
+
 function handlePeerMessage(peerId, data) {
+    // Validate all received messages
+    if (!validateReceivedMessage(data, peerId)) {
+        console.warn('Rejected invalid message from peer:', peerId);
+        return; // Drop invalid messages
+    }
+    
     if (data.type === 'join') {
         console.log('Peer joined:', data.username);
         
@@ -374,7 +586,7 @@ function handlePeerMessage(peerId, data) {
             connectToPeer(data.peerId);
         }
     } else if (data.type === 'message') {
-        // Regular chat message
+        // Regular chat message - already validated
         addMessage(data.message, false);
         
         // If we're the host, relay to all other peers

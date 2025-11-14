@@ -6,13 +6,14 @@ A beautiful, peer-to-peer public chat room built with HTML, CSS, and JavaScript.
 
 - 🌐 **Peer-to-Peer Communication** - Chat with people over the internet using WebRTC
 - 💬 **Single Public Room** - One public chat room where everyone can chat together
-- 👤 **Username System** - Set your username before joining
-- 📝 **Message Limit** - Configurable message limit (default: 50 messages)
+- 👤 **Auto-Generated Usernames** - Automatic username generation based on peer ID
+- 🚀 **Auto-Join** - Instantly join chat room on page load
+- 📝 **Auto-Clearing Messages** - Automatically removes oldest messages when limit reached (50 messages)
 - 🔄 **Real-Time Messaging** - Messages are sent directly between peers
 - ⏰ **Timestamps** - See when messages were sent
 - 🎨 **Responsive Design** - Works on desktop and mobile devices
-- 🧹 **Clear Chat** - Remove all messages when needed
 - 📊 **Connection Status** - See your connection status and number of connected peers
+- 🛡️ **Security Features** - Spam protection, rate limiting, and content validation
 
 ### 🎉 New Media Features
 
@@ -33,9 +34,9 @@ This chat uses **WebRTC (Web Real-Time Communication)** for peer-to-peer connect
 ## How to Use
 
 1. Open `index.html` in your web browser
-2. Enter a username
-3. Click "Join Public Chat"
-4. Start chatting! Everyone who joins will be in the same public room
+2. **That's it!** The app automatically joins with a random username
+3. Start chatting! Everyone who joins will be in the same public room
+4. Your username is generated from your unique peer ID (e.g., `BraveTigerA3F9`)
 
 ### Using Media Features
 
@@ -114,11 +115,61 @@ Works in all modern browsers that support:
 
 ## Privacy & Security
 
+### 🛡️ Security Features Implemented
+
+This chat implements **defensive security** to protect users from malicious peers:
+
+#### Message Validation
+- ✅ **Data structure validation** - Rejects malformed messages
+- ✅ **Content type validation** - Only accepts valid message types (text, gif, image, video)
+- ✅ **Size limits enforced** - Rejects oversized media (images/videos)
+- ✅ **Username validation** - Prevents excessively long usernames
+- ✅ **Text length limits** - Rejects messages over 1000 characters
+
+#### Rate Limiting & Spam Protection
+- ✅ **Rate limit detection** - Tracks message frequency per peer (10 messages per 5 seconds)
+- ✅ **Auto-blocking** - Automatically blocks peers sending spam
+- ✅ **Suspicious activity tracking** - Auto-blocks peers after 3 violations
+- ✅ **Peer blocking** - Disconnects and ignores blocked peers
+
+#### Input Sanitization
+- ✅ **HTML escaping** - All text is escaped to prevent XSS attacks
+- ✅ **Media URL validation** - Validates data URLs for images/videos
+- ✅ **Safe rendering** - Content is validated before display
+
+#### User Notifications
+- ✅ **Security warnings** - Shows alerts when blocking malicious peers
+- ✅ **Privacy disclaimer** - Warns users about public/unencrypted nature
+- ✅ **Console logging** - Detailed security logs for debugging
+
+### Privacy Considerations
+
 - All messages are sent directly between peers (peer-to-peer)
 - No central server stores your messages
 - Only initial signaling goes through PeerJS servers
-- Messages are not encrypted (consider this for sensitive conversations)
+- **Messages are NOT encrypted** - Don't share sensitive information
 - **Public room**: Everyone can see all messages in the public chat
+- **Peer IDs are visible** - Connected users can see each other's peer IDs
+
+### Important Security Notes
+
+⚠️ **Client-Side Security Limitations:**
+- All security checks are defensive (protect YOU from others)
+- Malicious users can bypass their own client-side checks
+- This is normal for P2P apps - we validate what we RECEIVE, not what others SEND
+- The app protects honest users from mistakes and malicious users from each other
+
+⚠️ **What This Security DOES:**
+- Protects you from malicious/spam messages
+- Prevents display of harmful content
+- Auto-blocks misbehaving peers
+- Validates all incoming data
+
+⚠️ **What This Security DOES NOT:**
+- Prevent determined attackers from trying to send bad data
+- Encrypt messages (WebRTC transport is encrypted, but messages pass through signaling)
+- Authenticate users (no verification of identity)
+- Provide perfect security (P2P is inherently less secure than server-based)
 
 ## Troubleshooting
 

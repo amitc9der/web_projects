@@ -773,6 +773,76 @@ body {
     cursor: pointer;
 }
 
+/* Security Disclaimer */
+.security-disclaimer {
+    background: #e3f2fd;
+    border: 2px solid #2196f3;
+    border-left: 4px solid #1976d2;
+    padding: 10px 20px;
+    margin: 10px 25px;
+    border-radius: 0;
+    box-shadow: 2px 2px 0px rgba(33, 150, 243, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Courier New', monospace;
+}
+
+.disclaimer-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.disclaimer-text {
+    color: #0d47a1;
+    font-size: 12px;
+    font-weight: 600;
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Security Warning */
+.security-warning {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-left: 4px solid #ff9800;
+    padding: 12px 20px;
+    margin: 10px 25px;
+    border-radius: 0;
+    box-shadow: 2px 2px 0px rgba(255, 193, 7, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Courier New', monospace;
+    animation: slideInWarning 0.3s ease;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+@keyframes slideInWarning {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.security-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.security-message {
+    color: #856404;
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+}
+
 @media (max-width: 600px) {
     .chat-container {
         height: 100vh;
