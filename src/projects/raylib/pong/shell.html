@@ -38,7 +38,25 @@
 
                 return canvas;
             })(),
+            setCanvasSize: function(width, height) {
+                Module.canvas.width = width;
+                Module.canvas.height = height;
+            }
         };
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (Module.setCanvasSize) {
+                Module.setCanvasSize(window.innerWidth, window.innerHeight);
+            }
+        });
+        
+        // Set initial size
+        window.addEventListener('load', function() {
+            if (Module.setCanvasSize) {
+                Module.setCanvasSize(window.innerWidth, window.innerHeight);
+            }
+        });
     </script>
     {{{ SCRIPT }}}
   </body>

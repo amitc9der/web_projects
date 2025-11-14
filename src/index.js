@@ -100,8 +100,10 @@ function loadIframe(main, src) {
 
 
 function createSidebar(items = [], options = {}) {
+  // Responsive width and font size based on screen size
+  const isMobile = window.innerWidth < 768;
   const {
-    width = "250px",
+    width = isMobile ? "80vw" : "250px",
     zIndex = 9999,
     fontFamily = "'Courier New', monospace",
     background = "#faf8f3",
@@ -143,8 +145,8 @@ function createSidebar(items = [], options = {}) {
       background: "#e8ddd4",
       border: "2px solid #8b6f47",
       cursor: "pointer",
-      width: "3em",
-      height: "3em",
+      width: isMobile ? "60px" : "3em",
+      height: isMobile ? "60px" : "3em",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -152,13 +154,14 @@ function createSidebar(items = [], options = {}) {
       position: "relative",
       zIndex: "9999",
       boxShadow: "2px 2px 0px rgba(139, 111, 71, 0.3)",
-      marginBottom: "1em",
+      marginBottom: isMobile ? "1.5em" : "1em",
     },
   });
 
   // Insert your SVG inside the button with retro color
+  const svgSize = isMobile ? "32px" : "24px";
   collapseBtn.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#3d2817"><path d="M120-680v-80h720v80H120Zm0 480v-80h720v80H120Zm0-240v-80h720v80H120Z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" height="${svgSize}" viewBox="0 -960 960 960" width="${svgSize}" fill="#3d2817"><path d="M120-680v-80h720v80H120Zm0 480v-80h720v80H120Zm0-240v-80h720v80H120Z"/></svg>
 `
 
   collapseBtn.onmouseenter = () => {
@@ -210,16 +213,16 @@ function createSidebar(items = [], options = {}) {
     list.forEach((item) => {
       const itemEl = createEl("div", {
         style: {
-          padding: "0.6em 0.8em",
+          padding: isMobile ? "1.5em 1.2em" : "0.6em 0.8em",
           cursor: "pointer",
           whiteSpace: "nowrap",
           userSelect: "none",
-          marginBottom: "0.3em",
+          marginBottom: isMobile ? "0.8em" : "0.3em",
           border: "1px solid transparent",
           transition: "all 0.2s ease",
           textTransform: "uppercase",
           letterSpacing: "0.05em",
-          fontSize: "0.9em",
+          fontSize: isMobile ? "20px" : "0.9em",
           fontWeight: "600",
         },
         children: [document.createTextNode(item.label)],
@@ -247,11 +250,11 @@ function createSidebar(items = [], options = {}) {
       if (item.children && item.children.length > 0) {
         const nested = createEl("div", {
           style: {
-            marginLeft: "1em",
-            borderLeft: "2px solid #d4c4a8",
-            paddingLeft: "0.8em",
-            marginTop: "0.3em",
-            marginBottom: "0.5em",
+            marginLeft: isMobile ? "1.5em" : "1em",
+            borderLeft: isMobile ? "3px solid #d4c4a8" : "2px solid #d4c4a8",
+            paddingLeft: isMobile ? "1.2em" : "0.8em",
+            marginTop: isMobile ? "0.8em" : "0.3em",
+            marginBottom: isMobile ? "1em" : "0.5em",
           },
         });
         renderItems(nested, item.children);
