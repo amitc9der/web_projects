@@ -1,7 +1,7 @@
 /**
  * Loads the portfolio section into the given container element and returns the generated HTML element.
  */
-export default function loadPortfolio() {
+export default async function loadPortfolio() {
     const main = document.getElementById("main");
     main.innerHTML = "";
     
@@ -23,6 +23,28 @@ export default function loadPortfolio() {
         position: "relative",
     });
 
+    // Load configuration
+    let config;
+    try {
+        // Use relative path that works in both dev and production
+        const configPath = new URL("./portfolio-config.json", import.meta.url).href;
+        const response = await fetch(configPath);
+        if (!response.ok) {
+            throw new Error(`Failed to load config: ${response.statusText}`);
+        }
+        config = await response.json();
+    } catch (error) {
+        console.error("Failed to load portfolio config:", error);
+        // Fallback to empty config if loading fails
+        config = {
+            hero: { title: "", description: "", ctaButtons: [] },
+            about: { title: "", text: "", interests: [] },
+            skills: { title: "", items: [] },
+            projects: { title: "", items: [] },
+            contact: { title: "", subtitle: "", links: [] }
+        };
+    }
+
     // Create portfolio container
     const portfolioContainer = createElement("div", {
         style: {
@@ -33,23 +55,23 @@ export default function loadPortfolio() {
     });
 
     // Hero Section
-    const heroSection = createHeroSection();
+    const heroSection = createHeroSection(config.hero);
     portfolioContainer.appendChild(heroSection);
 
     // About Section
-    const aboutSection = createAboutSection();
+    const aboutSection = createAboutSection(config.about);
     portfolioContainer.appendChild(aboutSection);
 
     // Skills Section
-    const skillsSection = createSkillsSection();
+    const skillsSection = createSkillsSection(config.skills);
     portfolioContainer.appendChild(skillsSection);
 
     // Projects Section
-    const projectsSection = createProjectsSection();
+    const projectsSection = createProjectsSection(config.projects);
     portfolioContainer.appendChild(projectsSection);
 
     // Contact Section
-    const contactSection = createContactSection();
+    const contactSection = createContactSection(config.contact);
     portfolioContainer.appendChild(contactSection);
 
     main.appendChild(portfolioContainer);
@@ -58,7 +80,7 @@ export default function loadPortfolio() {
     addScrollAnimations();
 }
 
-function createHeroSection() {
+function createHeroSection(heroConfig) {
     const section = createElement("section", {
         style: {
             minHeight: "100vh",
@@ -71,8 +93,6 @@ function createHeroSection() {
             position: "relative",
         }
     });
-
-    // Removed name element
 
     const title = createElement("h2", {
         style: {
@@ -88,7 +108,7 @@ function createHeroSection() {
             paddingBottom: "1rem",
             display: "inline-block",
         },
-        textContent: "Full Stack Developer & Creative Problem Solver"
+        textContent: heroConfig.title || ""
     });
 
     const description = createElement("p", {
@@ -101,7 +121,7 @@ function createHeroSection() {
             fontStyle: "italic",
             animation: "fadeInUp 1s ease-out 0.4s both",
         },
-        textContent: "Passionate about building innovative web applications, exploring algorithms, and creating interactive experiences with modern technologies."
+        textContent: heroConfig.description || ""
     });
 
     const ctaButtons = createElement("div", {
@@ -114,26 +134,29 @@ function createHeroSection() {
         }
     });
 
-    const viewProjectsBtn = createButton("View My Work", {
-        background: "#e8ddd4",
-        color: "#3d2817",
-        border: "2px solid #8b6f47",
-        onClick: () => {
-            document.getElementById("projects-section")?.scrollIntoView({ behavior: "smooth" });
-        }
-    });
+    (heroConfig.ctaButtons || []).forEach((buttonConfig, index) => {
+        const buttonStyle = index === 0 ? {
+            background: "#e8ddd4",
+            color: "#3d2817",
+            border: "2px solid #8b6f47",
+        } : {
+            background: "#8b6f47",
+            color: "#f5f1e8",
+            border: "2px solid #8b6f47",
+        };
 
-    const contactBtn = createButton("Get In Touch", {
-        background: "#8b6f47",
-        color: "#f5f1e8",
-        border: "2px solid #8b6f47",
-        onClick: () => {
-            document.getElementById("contact-section")?.scrollIntoView({ behavior: "smooth" });
-        }
-    });
+        const onClick = buttonConfig.action === "scroll" && buttonConfig.target
+            ? () => {
+                document.getElementById(buttonConfig.target)?.scrollIntoView({ behavior: "smooth" });
+            }
+            : null;
 
-    ctaButtons.appendChild(viewProjectsBtn);
-    ctaButtons.appendChild(contactBtn);
+        const btn = createButton(buttonConfig.text, {
+            ...buttonStyle,
+            onClick
+        });
+        ctaButtons.appendChild(btn);
+    });
 
     section.appendChild(title);
     section.appendChild(description);
@@ -142,7 +165,7 @@ function createHeroSection() {
     return section;
 }
 
-function createAboutSection() {
+function createAboutSection(aboutConfig) {
     const section = createElement("section", {
         id: "about-section",
         style: {
@@ -196,7 +219,7 @@ function createAboutSection() {
             display: "inline-block",
             width: "100%",
         },
-        textContent: "About Me"
+        textContent: aboutConfig.title || "About Me"
     });
 
     const content = createElement("div", {
@@ -216,7 +239,7 @@ function createAboutSection() {
             color: "#4a3423",
             textAlign: "justify",
         },
-        textContent: "I'm a passionate developer who loves exploring the intersection of technology and creativity. My journey includes building web applications, visualizing algorithms, creating games, and experimenting with cutting-edge web technologies like WebGL and WebAssembly."
+        textContent: aboutConfig.text || ""
     });
 
     const interests = createElement("div", {
@@ -238,15 +261,7 @@ function createAboutSection() {
         textContent: "Interests"
     });
 
-    const interestsList = [
-        "Algorithm Visualization",
-        "Game Development",
-        "WebGL & 3D Graphics",
-        "Performance Optimization",
-        "Creative Coding"
-    ];
-
-    interestsList.forEach(interest => {
+    (aboutConfig.interests || []).forEach(interest => {
         const item = createElement("div", {
             style: {
                 padding: "0.75rem 1rem",
@@ -289,7 +304,7 @@ function createAboutSection() {
     return section;
 }
 
-function createSkillsSection() {
+function createSkillsSection(skillsConfig) {
     const section = createElement("section", {
         id: "skills-section",
         style: {
@@ -313,7 +328,7 @@ function createSkillsSection() {
             display: "inline-block",
             width: "100%",
         },
-        textContent: "Skills & Technologies"
+        textContent: skillsConfig.title || "Skills & Technologies"
     });
 
     const skillsGrid = createElement("div", {
@@ -326,18 +341,7 @@ function createSkillsSection() {
         }
     });
 
-    const skills = [
-        "JavaScript",
-        "HTML/CSS",
-        "WebGL",
-        "WebAssembly",
-        "C/C++",
-        "Game Development",
-        "Algorithm Design",
-        "Performance Optimization",
-    ];
-
-    skills.forEach(skillName => {
+    (skillsConfig.items || []).forEach(skillName => {
         const skillCard = createElement("div", {
             style: {
                 background: "#faf8f3",
@@ -377,7 +381,7 @@ function createSkillsSection() {
     return section;
 }
 
-function createProjectsSection() {
+function createProjectsSection(projectsConfig) {
     const section = createElement("section", {
         id: "projects-section",
         style: {
@@ -431,7 +435,7 @@ function createProjectsSection() {
             display: "inline-block",
             width: "100%",
         },
-        textContent: "Featured Projects"
+        textContent: projectsConfig.title || "Featured Projects"
     });
 
     const projectsGrid = createElement("div", {
@@ -444,34 +448,7 @@ function createProjectsSection() {
         }
     });
 
-    const projects = [
-        {
-            title: "Algorithm Visualizations",
-            description: "Interactive visualizations of sorting algorithms including Bubble Sort and Merge Sort, built with WebAssembly for optimal performance.",
-            technologies: ["C", "WebAssembly", "JavaScript", "Canvas"],
-            routes: ["/algo/bubble_sort", "/algo/merge_sort"]
-        },
-        {
-            title: "Pong Game",
-            description: "Classic Pong game implementation using Raylib compiled to WebAssembly, demonstrating game development in the browser.",
-            technologies: ["C", "Raylib", "WebAssembly", "Game Development"],
-            routes: ["/pong"]
-        },
-        {
-            title: "WebGL Exploration",
-            description: "Interactive 3D graphics experiments using WebGL, exploring the capabilities of GPU-accelerated rendering in the browser.",
-            technologies: ["WebGL", "JavaScript", "3D Graphics"],
-            routes: ["/webGL"]
-        },
-        {
-            title: "Canvas Tools",
-            description: "Creative coding tools and utilities for canvas manipulation, including position tracking and interactive elements.",
-            technologies: ["JavaScript", "Canvas API", "HTML5"],
-            routes: ["/showPosition"]
-        },
-    ];
-
-    projects.forEach(project => {
+    (projectsConfig.items || []).forEach(project => {
         const projectCard = createElement("div", {
             style: {
                 background: "#e8ddd4",
@@ -531,7 +508,7 @@ function createProjectsSection() {
             }
         });
 
-        project.technologies.forEach(tech => {
+        (project.technologies || []).forEach(tech => {
             const tag = createElement("span", {
                 style: {
                     padding: "0.25rem 0.75rem",
@@ -551,7 +528,7 @@ function createProjectsSection() {
             color: "#f5f1e8",
             border: "2px solid #8b6f47",
             onClick: () => {
-                if (window.AppContext?.router && project.routes.length > 0) {
+                if (window.AppContext?.router && project.routes && project.routes.length > 0) {
                     window.AppContext.router.navigate(project.routes[0]);
                 }
             }
@@ -571,7 +548,7 @@ function createProjectsSection() {
     return section;
 }
 
-function createContactSection() {
+function createContactSection(contactConfig) {
     const section = createElement("section", {
         id: "contact-section",
         style: {
@@ -594,7 +571,7 @@ function createContactSection() {
             paddingBottom: "0.5rem",
             display: "inline-block",
         },
-        textContent: "Get In Touch"
+        textContent: contactConfig.title || "Get In Touch"
     });
 
     const subtitle = createElement("p", {
@@ -607,7 +584,7 @@ function createContactSection() {
             marginRight: "auto",
             fontStyle: "italic",
         },
-        textContent: "I'm always open to discussing new projects, creative ideas, or opportunities to collaborate."
+        textContent: contactConfig.subtitle || ""
     });
 
     const contactLinks = createElement("div", {
@@ -619,11 +596,7 @@ function createContactSection() {
         }
     });
 
-    const links = [
-        { name: "GitHub", url: "https://github.com/amitc9der" },
-    ];
-
-    links.forEach(link => {
+    (contactConfig.links || []).forEach(link => {
         const linkBtn = createButton(link.name, {
             background: "#e8ddd4",
             color: "#3d2817",

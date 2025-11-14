@@ -1,0 +1,82 @@
+{
+  "hero": {
+    "title": "Full Stack Developer & Creative Problem Solver",
+    "description": "Passionate about building innovative web applications, exploring algorithms, and creating interactive experiences with modern technologies.",
+    "ctaButtons": [
+      {
+        "text": "View My Work",
+        "action": "scroll",
+        "target": "projects-section"
+      },
+      {
+        "text": "Get In Touch",
+        "action": "scroll",
+        "target": "contact-section"
+      }
+    ]
+  },
+  "about": {
+    "title": "About Me",
+    "text": "I'm a passionate developer who loves exploring the intersection of technology and creativity. My journey includes building web applications, visualizing algorithms, creating games, and experimenting with cutting-edge web technologies like WebGL and WebAssembly.",
+    "interests": [
+      "Algorithm Visualization",
+      "Game Development",
+      "WebGL & 3D Graphics",
+      "Performance Optimization",
+      "Creative Coding"
+    ]
+  },
+  "skills": {
+    "title": "Skills & Technologies",
+    "items": [
+      "JavaScript",
+      "HTML/CSS",
+      "WebGL",
+      "WebAssembly",
+      "C/C++",
+      "Game Development",
+      "Algorithm Design",
+      "Performance Optimization"
+    ]
+  },
+  "projects": {
+    "title": "Featured Projects",
+    "items": [
+      {
+        "title": "Algorithm Visualizations",
+        "description": "Interactive visualizations of sorting algorithms including Bubble Sort and Merge Sort, built with WebAssembly for optimal performance.",
+        "technologies": ["C", "WebAssembly", "JavaScript", "Canvas"],
+        "routes": ["/algo/bubble_sort", "/algo/merge_sort"]
+      },
+      {
+        "title": "Pong Game",
+        "description": "Classic Pong game implementation using Raylib compiled to WebAssembly, demonstrating game development in the browser.",
+        "technologies": ["C", "Raylib", "WebAssembly", "Game Development"],
+        "routes": ["/pong"]
+      },
+      {
+        "title": "WebGL Exploration",
+        "description": "Interactive 3D graphics experiments using WebGL, exploring the capabilities of GPU-accelerated rendering in the browser.",
+        "technologies": ["WebGL", "JavaScript", "3D Graphics"],
+        "routes": ["/webGL"]
+      },
+      {
+        "title": "Canvas Tools",
+        "description": "Creative coding tools and utilities for canvas manipulation, including position tracking and interactive elements.",
+        "technologies": ["JavaScript", "Canvas API", "HTML5"],
+        "routes": ["/showPosition"]
+      }
+    ]
+  },
+  "contact": {
+    "title": "Get In Touch",
+    "subtitle": "I'm always open to discussing new projects, creative ideas, or opportunities to collaborate.",
+    "links": [
+      {
+        "name": "GitHub",
+        "url": "https://github.com/amitc9der"
+      }
+    ]
+  }
+}
+
