@@ -113,6 +113,19 @@
             "file": "/src/projects/chat_room/index.html"
           }
         ]
+      },
+      {
+        "title": "Skill Tracker",
+        "description": "Interactive skill tracking and learning platform for tracking progress across multiple skills. Features include progress overview dashboard, decision tree builder, DSRP framework analysis tool, Six Thinking Hat methodology, and customizable themes. Supports multiple programming languages and provides visual tools for learning and decision-making.",
+        "technologies": ["JavaScript", "Web Development", "Golang"],
+        "category": "Tools",
+        "routes": [
+          {
+            "path": "/learn",
+            "name": "Skill Tracker",
+            "file": "https://learn.4mi7.com"
+          }
+        ]
       }
     ]
   },
